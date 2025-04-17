@@ -1,0 +1,181 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Asteroid Dodge</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: black;
+      color: white;
+      font-family: sans-serif;
+    }
+
+    canvas {
+      display: block;
+      margin: 0 auto;
+      background: #000;
+      border: 2px solid #0f0;
+    }
+
+    #overlay {
+      position: absolute;
+      top: 30%;
+      width: 100%;
+      text-align: center;
+      color: white;
+      font-size: 2em;
+      display: none;
+    }
+
+    #playAgain {
+      margin-top: 1em;
+      font-size: 1em;
+      padding: 10px 20px;
+      cursor: pointer;
+    }
+
+    #timer {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 1.2em;
+      color: lime;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game" width="500" height="600"></canvas>
+  <div id="timer">Time: 0:00</div>
+  <div id="overlay">
+    <div id="resultText"></div>
+    <button id="playAgain" onclick="startGame()">Play Again</button>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const timerDisplay = document.getElementById('timer');
+
+    let player, asteroids, keys, gameInterval, spawnInterval, timerInterval;
+    let gameOver = false;
+    let startTime;
+
+    function createPlayer() {
+      return {
+        x: canvas.width / 2 - 20,
+        y: canvas.height - 60,
+        width: 40,
+        height: 40,
+        speed: 6,
+        color: 'cyan'
+      };
+    }
+
+    function createAsteroid(speed) {
+      return {
+        x: Math.random() * (canvas.width - 30),
+        y: -30,
+        width: 30,
+        height: 30,
+        speed: speed,
+        color: 'gray'
+      };
+    }
+
+    function drawRect(obj) {
+      ctx.fillStyle = obj.color;
+      ctx.fillRect(obj.x, obj.y, obj.width, obj.height);
+    }
+
+    function startGame() {
+      document.getElementById('overlay').style.display = 'none';
+      timerDisplay.textContent = 'Time: 0:00';
+
+      player = createPlayer();
+      asteroids = [];
+      keys = {};
+      gameOver = false;
+      startTime = Date.now();
+
+      document.addEventListener('keydown', e => keys[e.key] = true);
+      document.addEventListener('keyup', e => keys[e.key] = false);
+
+      clearInterval(gameInterval);
+      clearInterval(spawnInterval);
+      clearInterval(timerInterval);
+
+      gameInterval = setInterval(updateGame, 1000 / 60);
+      spawnInterval = setInterval(spawnAsteroids, 700);
+      timerInterval = setInterval(updateTimer, 1000);
+    }
+
+    function spawnAsteroids() {
+      if (gameOver) return;
+      const elapsed = (Date.now() - startTime) / 1000;
+      const speed = 2 + Math.min(elapsed / 15, 8); // gradually increase speed
+      asteroids.push(createAsteroid(speed));
+    }
+
+    function checkCollision(a, b) {
+      return (
+        a.x < b.x + b.width &&
+        a.x + a.width > b.x &&
+        a.y < b.y + b.height &&
+        a.y + a.height > b.y
+      );
+    }
+
+    function endGame(message) {
+      clearInterval(gameInterval);
+      clearInterval(spawnInterval);
+      clearInterval(timerInterval);
+      document.getElementById('resultText').textContent = message;
+      document.getElementById('overlay').style.display = 'block';
+      gameOver = true;
+    }
+
+    function updateTimer() {
+      const now = Date.now();
+      const elapsedSec = Math.floor((now - startTime) / 1000);
+      const min = Math.floor(elapsedSec / 60);
+      const sec = elapsedSec % 60;
+      timerDisplay.textContent = `Time: ${min}:${sec.toString().padStart(2, '0')}`;
+
+      if (elapsedSec >= 300 && !gameOver) {
+        endGame("Mission Success!");
+      }
+    }
+
+    function updateGame() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Move player
+      if (keys['ArrowLeft'] && player.x > 0) player.x -= player.speed;
+      if (keys['ArrowRight'] && player.x + player.width < canvas.width) player.x += player.speed;
+
+      drawRect(player);
+
+      // Update and draw asteroids
+      for (let asteroid of asteroids) {
+        asteroid.y += asteroid.speed;
+        drawRect(asteroid);
+
+        if (checkCollision(player, asteroid)) {
+          endGame("You Lose!");
+          return;
+        }
+      }
+
+      // Remove off-screen asteroids
+      asteroids = asteroids.filter(a => a.y < canvas.height + 30);
+    }
+
+    startGame();
+  </script>
+</body>
+</html>
+
